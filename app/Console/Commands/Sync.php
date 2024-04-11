@@ -24,7 +24,7 @@ class Sync extends Command
 	 */
 	protected $signature =
 		'lychee:sync ' .
-		'{dir* : directory to sync} ' . // string[]
+		'{dir* : directories to sync} ' . // string[]
 		'{--album_id= : Album ID to import to} ' . // string or null
 		'{--owner_id=1 : Owner ID of imported photos} ' . // string
 		'{--resync_metadata : Re-sync metadata of existing files}  ' . // bool
@@ -37,7 +37,7 @@ class Sync extends Command
 	 *
 	 * @var string
 	 */
-	protected $description = 'Sync a directory to lychee';
+	protected $description = 'Sync directories to lychee';
 
 	public function __construct()
 	{

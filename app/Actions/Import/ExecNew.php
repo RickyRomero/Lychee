@@ -3,14 +3,9 @@
 namespace App\Actions\Import;
 
 use App\Actions\Album\Create as AlbumCreate;
-use App\Actions\Import\Reporter\CliReporter;
-use App\Actions\Import\Reporter\SilentReporter;
-use App\Actions\Import\Reporter\WebReporter;
 use App\Actions\Photo\Create as PhotoCreate;
-use App\Assets\Features;
-use App\Contracts\Reporter;
+use App\Actions\Photo\Strategies\ImportMode;
 use App\DTO\ImportEventReport;
-use App\DTO\ImportMode;
 use App\DTO\ImportProgressReport;
 use App\Exceptions\FileOperationException;
 use App\Exceptions\ImportCancelledException;
@@ -20,6 +15,7 @@ use App\Exceptions\ReservedDirectoryException;
 use App\Image\Files\NativeLocalFile;
 use App\Models\Album;
 use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Pipeline\Pipeline;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Psr\Container\ContainerExceptionInterface;
@@ -34,14 +30,9 @@ use function Safe\preg_match;
 use function Safe\realpath;
 use function Safe\set_time_limit;
 
-class Exec
+class ExecNew
 {
-	protected ImportMode $importMode;
-	protected PhotoCreate $photoCreate;
-	protected AlbumCreate $albumCreate;
-	protected Reporter $reporter;
-	protected int $memLimit = 0;
-	protected bool $memWarningGiven = false;
+	protected Pipes\ImportParameters $importParameters;
 
 	/**
 	 * @param ImportMode $importMode          the import mode
@@ -54,14 +45,122 @@ class Exec
 		bool $enableCLIFormatting,
 		int $memLimit = 0)
 	{
-		Session::forget('cancel');
-		$this->importMode = $importMode;
-		$this->photoCreate = new PhotoCreate($importMode, $intendedOwnerId);
-		$this->albumCreate = new AlbumCreate($intendedOwnerId);
-		$this->reporter = $enableCLIFormatting
-			? new CliReporter()
-			: Features::when('livewire', fn () => new SilentReporter(), fn () => new WebReporter());
-		$this->memLimit = $memLimit;
+		$this->importParameters = new Pipes\ImportParameters(
+			importMode: $importMode,
+			photoCreate: new PhotoCreate($importMode, $intendedOwnerId),
+			albumCreate: new AlbumCreate($intendedOwnerId),
+			memLimit: $memLimit,
+			enableCLIFormatting: $enableCLIFormatting,
+		);
+	}
+
+	/**
+	 * We process breadth-first: first all the files in a directory,
+	 * then the subdirectories.  This way, if the process fails along the
+	 * way, it's much easier for the user to figure out what was imported
+	 *  and what was not.
+	 *
+	 * @param string     $path
+	 * @param Album|null $parentAlbum
+	 * @param string[]   $ignore_list
+	 */
+	public function do(
+		string $path,
+		?Album $parentAlbum,
+		array $ignore_list = []
+	): void {
+		try {
+			$dto = new Pipes\Processing();
+			$dto->path = $path;
+			$dto->params = $this->importParameters;
+			$dto->ignore_list = $ignore_list;
+
+			$result = app(Pipeline::class)
+				->send($dto)
+				->through([
+					Pipes\NormalizePath::class,
+					Pipes\ReadIgnoreList::class,
+					Pipes\ReadDirectories::class,
+				])->thenReturn();
+
+			// TODO: Consider to use a modern OO-approach using [`DirectoryIterator`](https://www.php.net/manual/en/class.directoryiterator.php) and [`SplFileInfo`](https://www.php.net/manual/en/class.splfileinfo.php)
+			/** @var string[] $files */
+			$files = glob($path . '/*');
+
+			$filesTotal = count($files);
+			$filesCount = 0;
+			$dirs = [];
+			$lastStatus = microtime(true);
+
+			$this->importParameters->reporter->report(ImportProgressReport::create($path, 0));
+			foreach ($files as $file) {
+				$this->assertImportNotCancelled();
+				// Reset the execution timeout for every iteration.
+				try {
+					set_time_limit((int) ini_get('max_execution_time'));
+				} catch (InfoException) {
+					// Silently do nothing, if `set_time_limit` is denied.
+				}
+				// Report if we might be running out of memory.
+				$this->memWarningCheck();
+
+				// Generate the status at most each third of a second,
+				// except for 0% and 100%, which are always generated.
+				// Generating more frequently would create unnecessary many status
+				// reports; generating less frequently might lead to Firefox
+				// complaining.
+				// Firefox considers any response with a delay of >=500ms as
+				// "unresponsive".
+				// Taking additional delays on the network layer into account,
+				// 1/3 second should be fine.
+				$time = microtime(true);
+				if ($time - $lastStatus >= 0.3) {
+					$this->importParameters->reporter->report(ImportProgressReport::create($path, $filesCount / $filesTotal * 100));
+					$lastStatus = $time;
+				}
+
+				// Let's check if we should ignore the file
+				if (self::checkAgainstIgnoreList($file, $ignore_list)) {
+					$filesTotal--;
+					continue;
+				}
+
+				if (is_dir($file)) {
+					$dirs[] = $file;
+					$filesTotal--;
+					continue;
+				}
+
+				$filesCount++;
+
+				try {
+					$this->photoCreate->add(new NativeLocalFile($file), $parentAlbum);
+				} catch (\Throwable $e) {
+					$this->importParameters->reporter->report(ImportEventReport::createFromException($e, $file));
+				}
+			}
+			$this->importParameters->reporter->report(ImportProgressReport::create($path, 100));
+
+			// Album creation per directory
+			foreach ($dirs as $dir) {
+				$this->assertImportNotCancelled();
+				/** @var Album|null */
+				$album = $this->importMode->shallSkipDuplicates() ?
+					Album::query()
+						->select(['albums.*'])
+						->join('base_albums', 'base_albums.id', '=', 'albums.id')
+						->where('albums.parent_id', '=', $parentAlbum?->id)
+						->where('base_albums.title', '=', basename($dir))
+						->first() :
+					null;
+				if ($album === null) {
+					$album = $this->albumCreate->create(basename($dir), $parentAlbum);
+				}
+				$this->do($dir . '/', $album, $ignore_list);
+			}
+		} catch (\Throwable $e) {
+			$this->importParameters->reporter->report(ImportEventReport::createFromException($e, $path));
+		}
 	}
 
 	/**
@@ -178,7 +277,7 @@ class Exec
 	private function memWarningCheck(): void
 	{
 		if ($this->memLimit !== 0 && !$this->memWarningGiven && memory_get_usage() > $this->memLimit) {
-			$this->reporter->report(ImportEventReport::createWarning('mem_limit', null, 'Approaching memory limit'));
+			$this->importParameters->reporter->report(ImportEventReport::createWarning('mem_limit', null, 'Approaching memory limit'));
 			$this->memWarningGiven = true;
 		}
 	}
@@ -198,107 +297,6 @@ class Exec
 			}
 		} catch (NotFoundExceptionInterface|ContainerExceptionInterface|BindingResolutionException $e) {
 			throw new FrameworkException('Laravel\'s session component', $e);
-		}
-	}
-
-	/**
-	 * We process breadth-first: first all the files in a directory,
-	 * then the subdirectories.  This way, if the process fails along the
-	 * way, it's much easier for the user to figure out what was imported
-	 *  and what was not.
-	 *
-	 * @param string     $path
-	 * @param Album|null $parentAlbum
-	 * @param string[]   $ignore_list
-	 */
-	public function do(
-		string $path,
-		?Album $parentAlbum,
-		array $ignore_list = []
-	): void {
-		try {
-			$path = self::normalizePath($path);
-
-			// Update ignore list
-			$ignore_list = array_merge($ignore_list, self::readLocalIgnoreList($path));
-
-			// TODO: Consider to use a modern OO-approach using [`DirectoryIterator`](https://www.php.net/manual/en/class.directoryiterator.php) and [`SplFileInfo`](https://www.php.net/manual/en/class.splfileinfo.php)
-			/** @var string[] $files */
-			$files = glob(preg_quote($path) . '/*');
-
-			$filesTotal = count($files);
-			$filesCount = 0;
-			$dirs = [];
-			$lastStatus = microtime(true);
-
-			$this->reporter->report(ImportProgressReport::create($path, 0));
-			foreach ($files as $file) {
-				$this->assertImportNotCancelled();
-				// Reset the execution timeout for every iteration.
-				try {
-					set_time_limit((int) ini_get('max_execution_time'));
-				} catch (InfoException) {
-					// Silently do nothing, if `set_time_limit` is denied.
-				}
-				// Report if we might be running out of memory.
-				$this->memWarningCheck();
-
-				// Generate the status at most each third of a second,
-				// except for 0% and 100%, which are always generated.
-				// Generating more frequently would create unnecessary many status
-				// reports; generating less frequently might lead to Firefox
-				// complaining.
-				// Firefox considers any response with a delay of >=500ms as
-				// "unresponsive".
-				// Taking additional delays on the network layer into account,
-				// 1/3 second should be fine.
-				$time = microtime(true);
-				if ($time - $lastStatus >= 0.3) {
-					$this->reporter->report(ImportProgressReport::create($path, $filesCount / $filesTotal * 100));
-					$lastStatus = $time;
-				}
-
-				// Let's check if we should ignore the file
-				if (self::checkAgainstIgnoreList($file, $ignore_list)) {
-					$filesTotal--;
-					continue;
-				}
-
-				if (is_dir($file)) {
-					$dirs[] = $file;
-					$filesTotal--;
-					continue;
-				}
-
-				$filesCount++;
-
-				try {
-					$this->photoCreate->add(new NativeLocalFile($file), $parentAlbum);
-				} catch (\Throwable $e) {
-					$this->reporter->report(ImportEventReport::createFromException($e, $file));
-				}
-			}
-			$this->reporter->report(ImportProgressReport::create($path, 100));
-
-			// Album creation per directory
-			foreach ($dirs as $dir) {
-				$this->assertImportNotCancelled();
-				/** @var Album|null */
-				$album = $this->importMode->shallSkipDuplicates ?
-					Album::query()
-						->select(['albums.*'])
-						->join('base_albums', 'base_albums.id', '=', 'albums.id')
-						->where('albums.parent_id', '=', $parentAlbum?->id)
-						->where('base_albums.title', '=', basename($dir))
-						->first() :
-					null;
-				if ($album === null) {
-					$album = $this->albumCreate->create(basename($dir), $parentAlbum);
-				}
-				$this->do($dir . '/', $album, $ignore_list);
-			}
-		} catch (\Throwable $e) {
-			$this->reporter->report(ImportEventReport::createFromException($e, $path));
 		}
 	}
 
