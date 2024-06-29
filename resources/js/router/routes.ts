@@ -10,48 +10,48 @@ import Users from "@/views/Users.vue";
 
 export const routes = [
 	{
-		name: 'landing',
+		name: "landing",
 		path: "/",
-		component: Landing
+		component: Landing,
 	},
 	{
-		name: 'gallery',
+		name: "gallery",
 		path: "/gallery",
 		component: Gallery,
 	},
 	{
-		name: 'diagnostics',
+		name: "diagnostics",
 		path: "/diagnostics",
-		component: Diagnostics
+		component: Diagnostics,
 	},
 	{
-		name: 'jobs',
+		name: "jobs",
 		path: "/jobs",
 		component: Jobs,
 	},
 	{
-		name: 'maintenance',
+		name: "maintenance",
 		path: "/maintenance",
-		component: Maintenance
+		component: Maintenance,
 	},
 	{
-		name: 'profile',
+		name: "profile",
 		path: "/profile",
 		component: Profile,
 	},
 	{
-		name: 'settings',
+		name: "settings",
 		path: "/settings",
 		component: Settings,
 	},
 	{
-		name: 'sharing',
+		name: "sharing",
 		path: "/sharing",
-		component: Sharing
+		component: Sharing,
 	},
 	{
-		name: 'users',
+		name: "users",
 		path: "/users",
-		component: Users
+		component: Users,
 	},
 ];

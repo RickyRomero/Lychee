@@ -9,8 +9,7 @@
 	</li>
 </template>
 <script setup lang="ts">
-import { trans } from 'laravel-vue-i18n';
-
+import { trans } from "laravel-vue-i18n";
 
 type LeftBarItemProps = {
 	icon: string;
@@ -18,5 +17,5 @@ type LeftBarItemProps = {
 	to: string;
 };
 
-const props = defineProps<LeftBarItemProps>()
+const props = defineProps<LeftBarItemProps>();
 </script>

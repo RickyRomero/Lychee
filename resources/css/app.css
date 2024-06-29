@@ -1,6 +1,6 @@
 @import "./fonts.css";
 @import "@fortawesome/fontawesome-free/css/all.css";
-@import 'primeicons/primeicons.css';
+@import "primeicons/primeicons.css";
 
 @tailwind base;
 /* also contains normalize */

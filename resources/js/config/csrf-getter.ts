@@ -1,16 +1,14 @@
-
 const CSRF = {
 	get() {
 		// If the developer didn't issue an XSRF token, we will find it ourselves.
 		let xcsrfToken = CSRF.xsrfToken();
 		let csrfToken = CSRF.firstInputWithCsrfToken();
-		
+
 		// Check if it is a CSRF or XSRF token
 		if (xcsrfToken !== null) {
 			return xcsrfToken;
 		} else if (csrfToken !== null) {
 			return csrfToken;
-
 		} else {
 			// We didn't find it, and since is required, we will bail out.
 			throw new TypeError(
@@ -62,7 +60,7 @@ const CSRF = {
 		// Laravel expects an unpadded value.
 		// Hence, we must remove the `%3D`.
 		return cookie !== undefined ? cookie.split("=")[1].trim().replace(/%3D/g, "") : null;
-	}	
-}
+	},
+};
 
 export default CSRF;

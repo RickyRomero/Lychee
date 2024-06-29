@@ -1,6 +1,6 @@
 <template>
-	<svg class='inline-block {{ props.fill }} {{ props.class }}'>
-		<use xlink:href='#{{ props.icon }}' />
+	<svg class="inline-block {{ props.fill }} {{ props.class }}">
+		<use xlink:href="#{{ props.icon }}" />
 	</svg>
 </template>
 
@@ -12,7 +12,7 @@ type IconProps = {
 };
 
 const props = withDefaults(defineProps<IconProps>(), {
-	class: '',
-	fill: 'fill-neutral-400'
+	class: "",
+	fill: "fill-neutral-400",
 });
 </script>

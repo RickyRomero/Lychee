@@ -9,11 +9,11 @@ import { createApp } from "vue";
 import PrimeVue from "primevue/config";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { routes } from "@/router/routes";
-import Aura from '@primevue/themes/aura';
+import Aura from "@primevue/themes/aura";
 // import Aura from "@/presets/aura";
-import { i18nVue } from 'laravel-vue-i18n'
-import ToastService from 'primevue/toastservice';
-import AxiosConfig from '@/config/axios-config';
+import { i18nVue } from "laravel-vue-i18n";
+import ToastService from "primevue/toastservice";
+import AxiosConfig from "@/config/axios-config";
 
 const router = createRouter({
 	history: createMemoryHistory(),
@@ -28,13 +28,13 @@ const router = createRouter({
 
 const app = createApp({});
 app.use(PrimeVue, {
-    theme: {
-        preset: Aura,
-        options: {
-            darkModeSelector: 'system',
-            // cssLayer: false
-        }
-    }
+	theme: {
+		preset: Aura,
+		options: {
+			darkModeSelector: "system",
+			// cssLayer: false
+		},
+	},
 });
 
 import AppComponent from "@/views/App.vue";
@@ -56,12 +56,12 @@ app.use(ToastService);
 // });
 
 app.use(i18nVue, {
-	resolve: async (lang:string) => {
+	resolve: async (lang: string) => {
 		// @ts-expect-error
-		const langs = import.meta.glob('../lang/*.json');
+		const langs = import.meta.glob("../lang/*.json");
 		return await langs[`../lang/${lang}.json`]();
-	}
-})
+	},
+});
 
 /**
  * Finally, we will attach the application instance to a HTML element with
@@ -70,4 +70,3 @@ app.use(i18nVue, {
 app.mount("#app");
 
 AxiosConfig.axiosSetUp();
-

@@ -32,26 +32,28 @@
 	</ul>
 </template>
 <script setup lang="ts">
-import DisabledLeftBarLinkItem from '@/components/menus/DisabledLeftBarLinkItem.vue';
-import LeftBarHeader from '@/components/menus/LeftBarHeader.vue';
-import LeftBarLinkItem from '@/components/menus/LeftBarLinkItem.vue';
-import LeftBarRealLinkItem from '@/components/menus/LeftBarRealLinkItem.vue';
-import { InitializationData } from '@/lycheeOrg/backend';
-import InitService from '@/services/init-service';
-import { Ref, ref } from 'vue';
+import DisabledLeftBarLinkItem from "@/components/menus/DisabledLeftBarLinkItem.vue";
+import LeftBarHeader from "@/components/menus/LeftBarHeader.vue";
+import LeftBarLinkItem from "@/components/menus/LeftBarLinkItem.vue";
+import LeftBarRealLinkItem from "@/components/menus/LeftBarRealLinkItem.vue";
+import { InitializationData } from "@/lycheeOrg/backend";
+import InitService from "@/services/init-service";
+import { Ref, ref } from "vue";
 
 const loaded = ref(false);
-const initData = ref(undefined) as Ref<undefined | InitializationData>
+const initData = ref(undefined) as Ref<undefined | InitializationData>;
 
-const clockwork_url = ref('/clockwork/app');
-const doc_api_url = ref('/api/documentation');
+const clockwork_url = ref("/clockwork/app");
+const doc_api_url = ref("/api/documentation");
 const hasDevTools = ref(true);
 const logsEnabled = ref(true);
 
-InitService.fetchInitData().then((data) => {
-	initData.value = data.data;
-	loaded.value = true;
-}).catch((error) => {
-	console.error(error);
-});
+InitService.fetchInitData()
+	.then((data) => {
+		initData.value = data.data;
+		loaded.value = true;
+	})
+	.catch((error) => {
+		console.error(error);
+	});
 </script>
