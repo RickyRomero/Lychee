@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Assets\Features;
 use App\Exceptions\ConfigurationKeyMissingException;
 use App\Exceptions\Internal\FrameworkException;
 use App\Exceptions\ModelDBException;
@@ -41,6 +42,10 @@ class IndexController extends Controller
 	 */
 	public function show(): View
 	{
+		if (Features::active('vuejs')) {
+			return view('vueapp');
+		}
+
 		try {
 			if (Configs::getValueAsBool('landing_page_enable')) {
 				$infos = [
@@ -115,6 +120,10 @@ class IndexController extends Controller
 	 */
 	public function gallery(): View
 	{
+		if (Features::active('vuejs')) {
+			return view('vueapp');
+		}
+
 		return $this->frontend();
 	}
 
@@ -221,10 +230,12 @@ class IndexController extends Controller
 	public static function getUserCustomFiles(string $fileName): string
 	{
 		$cssCacheBusting = '';
+		/** @disregard P1013 */
 		if (Storage::disk('dist')->fileExists($fileName)) {
 			$cssCacheBusting = '?' . Storage::disk('dist')->lastModified($fileName);
 		}
 
+		/** @disregard P1013 */
 		return Storage::disk('dist')->url($fileName) . $cssCacheBusting;
 	}
 }

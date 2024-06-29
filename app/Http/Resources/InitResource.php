@@ -36,6 +36,7 @@ class InitResource extends JsonResource
 		}
 
 		// we also return the locale
+		/** @disregard P1013 */
 		$locale = include base_path('lang/' . app()->getLocale() . '/lychee.php');
 
 		return [

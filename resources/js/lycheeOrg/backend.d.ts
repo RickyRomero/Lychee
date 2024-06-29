@@ -301,6 +301,9 @@ export type ConfigurationData = {
 	default_license?: string;
 	delete_imported?: string;
 	grants_download: string;
+	footer_additional_text: string;
+	footer_show_copyright: boolean;
+	footer_show_social_media: boolean;
 	dropbox_key?: string;
 	editor_enabled: string;
 	rss_enable: string;
@@ -308,6 +311,9 @@ export type ConfigurationData = {
 	grants_full_photo_access: string;
 	image_overlay_type: OverlayTypes;
 	landing_page_enable: string;
+	landing_background: string;
+	landing_title: string;
+	landing_subtitle: string;
 	lang: string;
 	lang_available: string[];
 	layout: PhotoLayoutType;
@@ -332,6 +338,15 @@ export type ConfigurationData = {
 	skip_duplicates?: string;
 	sorting_albums: SortingCriterion;
 	sorting_photos: SortingCriterion;
+	site_copyright_begin: number;
+	site_copyright_end: number;
+	site_title: string;
+	site_owner: string;
+	sm_facebook_url: string;
+	sm_flickr_url: string;
+	sm_instagram_url: string;
+	sm_twitter_url: string;
+	sm_youtube_url: string;
 	swipe_tolerance_x: string;
 	swipe_tolerance_y: string;
 	upload_processing_limit: string;

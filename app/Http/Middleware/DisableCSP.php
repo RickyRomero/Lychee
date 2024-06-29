@@ -50,7 +50,7 @@ class DisableCSP
 		}
 
 		// disable unsafe-eval if we are on a Livewire page
-		if (Features::active('livewire') || Str::startsWith($request->getRequestUri(), $dir_url . '/livewire/')) {
+		if (Features::active('vuejs') || Features::active('livewire') || Str::startsWith($request->getRequestUri(), $dir_url . '/livewire/')) {
 			$this->handleLivewire();
 		}
 
