@@ -7,7 +7,7 @@
 import "./bootstrap";
 import { createApp } from "vue";
 import PrimeVue from "primevue/config";
-import { createMemoryHistory, createRouter } from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
 import { routes } from "@/router/routes";
 import Aura from "@primevue/themes/aura";
 // import Aura from "@/presets/aura";
@@ -16,7 +16,7 @@ import ToastService from "primevue/toastservice";
 import AxiosConfig from "@/config/axios-config";
 
 const router = createRouter({
-	history: createMemoryHistory(),
+	history: createWebHistory(),
 	routes,
 });
 

@@ -4,7 +4,7 @@
 		<LeftMenu />
 	</Drawer>
 	<main>
-		<RouterView />
+		<RouterView @toggleLeftMenu="toggleLeftMenu" />
 	</main>
 </template>
 
@@ -15,4 +15,8 @@ import { ref } from "vue";
 import Toast from "primevue/toast";
 
 const leftMenuOpen = ref(false);
+
+function toggleLeftMenu() {
+	leftMenuOpen.value = !leftMenuOpen.value;
+};
 </script>
